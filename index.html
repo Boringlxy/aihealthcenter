@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Skill 体检中心</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+</head>
+<body>
+
+  <header class="header">
+    <div class="header-inner">
+      <div class="logo">
+        <div class="logo-mark"></div>
+        <span class="logo-text">Skill 体检中心</span>
+      </div>
+      <div class="header-status"><span class="status-dot"></span> 就绪</div>
+    </div>
+  </header>
+
+  <main class="main">
+
+    <!-- Hero / Input -->
+    <section id="input-section">
+      <div class="hero">
+        <div class="hero-copy">
+          <h1>给你的 Skill 做一次体检</h1>
+          <p>上传一个 Skill 文件夹或压缩包，我们会把它从头到尾扫一遍，用大白话告诉你哪里好、哪里能更好——就算你第一次写 Skill 也看得懂。</p>
+        </div>
+        <div class="hero-art"><img id="hero-img" alt="" /></div>
+      </div>
+
+      <div class="card glass input-card">
+        <div class="input-tabs">
+          <button class="tab active" data-tab="upload">上传文件</button>
+          <button class="tab" data-tab="paste">粘贴文本</button>
+        </div>
+
+        <div class="tab-content">
+          <div id="tab-upload" class="tab-panel active">
+            <div class="drop-zone" id="drop-zone">
+              <div class="drop-art"><img id="empty-img" alt="" /></div>
+              <p>把 Skill 文件夹或 .zip 拖进来</p>
+              <span class="drop-hint">也可以点下面的按钮选择 · 我们只读文本，图片等资源只统计不读取</span>
+            </div>
+            <div class="upload-buttons">
+              <button class="upload-btn" id="btn-select-folder">📁 选择文件夹</button>
+              <button class="upload-btn" id="btn-select-zip">📦 选择压缩包</button>
+            </div>
+            <div id="file-info" class="file-info hidden"></div>
+          </div>
+
+          <div id="tab-paste" class="tab-panel">
+            <textarea id="skill-text" placeholder="把 SKILL.md 的内容粘贴到这里…"></textarea>
+            <div class="char-count"><span id="char-count">0</span> 字符</div>
+          </div>
+        </div>
+
+        <button class="btn-diagnose" id="btn-diagnose" disabled>开始体检</button>
+      </div>
+
+      <div class="card glass principles-card">
+        <div class="principles-title">我们会看这 6 个方面</div>
+        <div class="principles-grid">
+          <div class="p-tag"><span class="p-icon">🦴</span><span class="p-name">骨架齐全</span><span class="p-desc">该有的文件在不在</span></div>
+          <div class="p-tag"><span class="p-icon">🔍</span><span class="p-name">能被找到</span><span class="p-desc">AI 会不会想起用它</span></div>
+          <div class="p-tag"><span class="p-icon">🔧</span><span class="p-name">能干实事</span><span class="p-desc">靠脚本还是靠瞎猜</span></div>
+          <div class="p-tag"><span class="p-icon">🛡️</span><span class="p-name">安全可控</span><span class="p-desc">危险操作先问一句</span></div>
+          <div class="p-tag"><span class="p-icon">📖</span><span class="p-name">好读好维护</span><span class="p-desc">新人看不看得懂</span></div>
+          <div class="p-tag"><span class="p-icon">✨</span><span class="p-name">写得地道</span><span class="p-desc">够不够专业、符不符合最佳实践</span></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Loading -->
+    <section id="loading-section" class="card glass loading-card hidden">
+      <div class="loading-container">
+        <div class="scan-ring"><div class="scan-ring-inner"></div></div>
+        <div class="loading-text">
+          <h3>正在体检</h3>
+          <p id="loading-step">展开文件结构…</p>
+        </div>
+        <div class="loading-bar"><div class="loading-bar-fill" id="loading-bar-fill"></div></div>
+      </div>
+    </section>
+
+    <!-- Results -->
+    <section id="result-section" class="hidden">
+      <div class="summary-banner glass" id="summary-banner"></div>
+
+      <div class="result-grid">
+        <div class="card glass score-card">
+          <div class="score-ring-container">
+            <svg viewBox="0 0 200 200" class="score-ring-svg">
+              <circle cx="100" cy="100" r="72" class="score-ring-bg" />
+              <circle cx="100" cy="100" r="72" class="score-ring-fill" id="score-ring" />
+            </svg>
+            <div class="score-value">
+              <span id="score-number">0</span>
+              <span class="score-max">/ 5.0</span>
+            </div>
+          </div>
+          <div class="score-meta">
+            <div class="score-grade" id="score-grade">--</div>
+            <div class="score-label" id="score-label">等待诊断</div>
+          </div>
+        </div>
+
+        <div class="card glass radar-card">
+          <div class="card-header"><h2>五维雷达</h2></div>
+          <canvas id="radar-chart" width="400" height="400"></canvas>
+        </div>
+      </div>
+
+      <!-- Scan overview -->
+      <div class="card glass">
+        <div class="card-header"><h2>📂 这次体检扫了什么</h2></div>
+        <div id="scan-overview"></div>
+      </div>
+
+      <!-- Dimension coaching -->
+      <div class="card glass">
+        <div class="card-header"><h2>逐项点评</h2></div>
+        <div id="dimensions-list" class="dimensions-list"></div>
+      </div>
+
+      <!-- Diagnosis -->
+      <div class="card glass">
+        <div class="card-header"><h2>🩺 发现的问题</h2></div>
+        <div id="diagnosis-list" class="diagnosis-list"></div>
+      </div>
+
+      <!-- Recommendations -->
+      <div class="card glass">
+        <div class="card-header"><h2>✅ 接下来怎么改</h2></div>
+        <div id="recommendations-list" class="recommendations-list"></div>
+      </div>
+
+      <!-- Report image -->
+      <div class="card glass">
+        <div class="card-header"><h2>🖼️ 体检报告图</h2></div>
+        <div id="illustration-area" class="illustration-area"></div>
+      </div>
+
+      <div class="card glass actions-card">
+        <button class="btn-action" id="btn-retry">🔄 再测一个</button>
+        <button class="btn-action" id="btn-export">📄 导出 Markdown</button>
+        <button class="btn-action" id="btn-image">🖼️ 下载报告图</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="footer">Skill 体检中心 · 5 维度 · 一份新手也看得懂的体检报告</footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3/dist/jszip.min.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
