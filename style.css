@@ -98,7 +98,7 @@ section { display: flex; flex-direction: column; gap: 22px; }
   border: 1px solid rgba(255,255,255,0.5);
   box-shadow: var(--shadow);
 }
-.card-header { margin-bottom: 18px; }
+.card-header { margin-bottom: 18px; display: flex; align-items: center; }
 .card-header h2 { font-size: 19px; font-weight: 600; letter-spacing: -0.01em; }
 
 /* ===== Hero ===== */
@@ -212,7 +212,7 @@ textarea::placeholder { color: var(--text-3); }
 .p-desc { font-size: 11.5px; color: var(--text-3); line-height: 1.4; }
 
 /* ===== Loading ===== */
-.loading-card { text-align: center; }
+.loading-card { text-align: center; position: relative; z-index: 50; }
 .loading-container { display: flex; flex-direction: column; align-items: center; gap: 18px; padding: 30px 0; }
 .scan-ring { width: 52px; height: 52px; }
 .scan-ring-inner {
@@ -336,9 +336,20 @@ textarea::placeholder { color: var(--text-3); }
 .empty-good { text-align: center; padding: 24px; font-size: 15px; color: var(--green); font-weight: 500; }
 
 /* ===== Illustration ===== */
-.illustration-area { display: flex; justify-content: center; }
+.illustration-area { display: flex; flex-direction: column; align-items: center; gap: 1rem; }
 .illustration-area img { max-width: 100%; border-radius: var(--radius); cursor: pointer; box-shadow: var(--shadow-sm); transition: transform 0.2s; }
 .illustration-area img:hover { transform: scale(1.01); }
+
+/* nnn illustration */
+.nnn-illustration-wrap { width: 100%; text-align: center; margin-bottom: 0.4rem; }
+.nnn-illustration { width: 100%; border-radius: var(--radius); cursor: pointer; box-shadow: var(--shadow-sm); transition: transform 0.2s; }
+.nnn-illustration:hover { transform: scale(1.01); }
+.nnn-caption { margin-top: 0.4rem; font-size: 0.72rem; color: var(--text-3); letter-spacing: 0.02em; }
+.report-data-image { width: 100%; border-radius: var(--radius); cursor: pointer; box-shadow: var(--shadow-sm); transition: transform 0.2s; }
+.report-data-image:hover { transform: scale(1.01); }
+.nnn-loading { display: flex; align-items: center; justify-content: center; gap: 0.5rem; padding: 2rem; color: var(--text-2); font-size: 0.88rem; width: 100%; }
+.nnn-loading-spinner { width: 20px; height: 20px; border: 2px solid var(--hairline); border-top-color: var(--blue); border-radius: 50%; animation: spin 0.8s linear infinite; }
+.nnn-badge { display: inline-block; padding: 2px 8px; font-size: 0.65rem; font-weight: 600; color: var(--blue); background: rgba(0,122,255,0.08); border-radius: 6px; margin-left: 0.5rem; vertical-align: middle; }
 .report-loading {
   display: flex; align-items: center; justify-content: center; gap: 10px;
   padding: 40px 20px; font-size: 14px; color: var(--text-3);

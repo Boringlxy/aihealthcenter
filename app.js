@@ -31,6 +31,13 @@ let skillFiles = [];   // { name, path, content } — readable text files
 let fileMeta = [];     // { path, name, ext, category, isText, sizeBytes }
 let scanData = null;   // summary of the scan
 
+// ===== nnn-illustration availability check =====
+let illustrationAvailable = false;
+fetch('/api/status')
+  .then(r => r.json())
+  .then(d => { illustrationAvailable = !!d.illustrationAvailable; })
+  .catch(() => { illustrationAvailable = false; });
+
 // ===== Term Glossary (hover tooltips) =====
 const GLOSSARY = {
   'SKILL.md': 'Skill 的“说明书首页”。AI 打开一个 Skill，最先读的就是这个文件。',
@@ -391,9 +398,53 @@ async function startDiagnosis() {
     resultSection.innerHTML = '<div class="card" style="padding:2rem;color:var(--red)"><h3>诊断出错</h3><p>' + e.message + '</p></div>';
     return;
   }
-  loadingSection.classList.add('hidden');
-  resultSection.classList.remove('hidden');
-  renderResult(result);
+
+  // If nnn illustration is available, keep loading screen until image is ready
+  if (illustrationAvailable) {
+    loadingStep.textContent = '正在生成报告一览图，预计 30~60 秒…';
+    const countdownStart = Date.now();
+    const estimatedSec = 50;
+    const countdownTimer = setInterval(() => {
+      const elapsed = Math.floor((Date.now() - countdownStart) / 1000);
+      const remaining = Math.max(0, estimatedSec - elapsed);
+      loadingStep.textContent = '正在生成报告一览图，预计还需 ' + remaining + ' 秒…';
+      loadingBarFill.style.width = Math.min(98, 85 + (elapsed / estimatedSec) * 13) + '%';
+    }, 1000);
+
+    // Render results in a hidden state first so DOM gets populated
+    resultSection.style.visibility = 'hidden';
+    resultSection.style.position = 'absolute';
+    resultSection.classList.remove('hidden');
+    renderResult(result);
+
+    // Wait for illustration to appear or fail, then show everything
+    const waitForIllustration = () => {
+      return new Promise(resolve => {
+        const check = () => {
+          const illo = document.querySelector('.nnn-illustration');
+          const fallback = document.querySelector('.illustration-area img');
+          if (illo || fallback) { resolve(); return; }
+          setTimeout(check, 500);
+        };
+        setTimeout(() => { resolve(); }, 120000);
+        check();
+      });
+    };
+    await waitForIllustration();
+    clearInterval(countdownTimer);
+    loadingBarFill.style.width = '100%';
+    loadingStep.textContent = '报告一览图生成完成！';
+    await sleep(400);
+
+    // Now reveal results and hide loading
+    resultSection.style.visibility = '';
+    resultSection.style.position = '';
+    loadingSection.classList.add('hidden');
+  } else {
+    loadingSection.classList.add('hidden');
+    resultSection.classList.remove('hidden');
+    renderResult(result);
+  }
 }
 function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
 
@@ -915,16 +966,21 @@ function renderResult(result) {
   // recommendations
   renderRecommendations(recommendations);
 
-  // report image (async — embeds a generated illustration)
+  // report image — nnn illustration or canvas fallback
   const area = $('#illustration-area');
-  area.innerHTML = '<div class="report-loading">正在生成报告图…</div>';
-  generateReportImage(result).then(url => {
-    area.innerHTML = '';
-    const img = document.createElement('img');
-    img.src = url; img.title = '点击下载报告图';
-    img.addEventListener('click', () => downloadDataUrl(url, 'skill-report.png'));
-    area.appendChild(img);
-  });
+  if (illustrationAvailable) {
+    area.innerHTML = '<div class="nnn-loading" id="nnn-loader"><div class="nnn-loading-spinner"></div><span>正在生成报告一览图…</span></div>';
+    generateNnnIllustration(result, area);
+  } else {
+    area.innerHTML = '<div class="report-loading">正在生成报告图…</div>';
+    generateReportImage(result).then(url => {
+      area.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = url; img.title = '点击下载报告图';
+      img.addEventListener('click', () => downloadDataUrl(url, 'skill-report.png'));
+      area.appendChild(img);
+    });
+  }
 }
 
 function gradeColor(g) {
@@ -1144,7 +1200,16 @@ $('#btn-retry').addEventListener('click', () => {
 });
 $('#btn-export').addEventListener('click', exportMarkdown);
 $('#btn-image').addEventListener('click', () => {
-  if (currentResult) generateReportImage(currentResult).then(url => downloadDataUrl(url, 'skill-report.png'));
+  // Download the nnn illustration if available, otherwise canvas report
+  const nnnImg = document.querySelector('.nnn-illustration');
+  if (nnnImg && nnnImg.src) {
+    const a = document.createElement('a');
+    a.href = nnnImg.src;
+    a.download = 'skill-health-illustration.png';
+    a.click();
+  } else if (currentResult) {
+    generateReportImage(currentResult).then(url => downloadDataUrl(url, 'skill-report.png'));
+  }
 });
 
 function downloadDataUrl(url, name) {
@@ -1400,6 +1465,74 @@ function roundRect(ctx, x, y, w, h, r) {
   ctx.lineTo(x, y + r); ctx.quadraticCurveTo(x, y, x + r, y); ctx.closePath();
 }
 function truncate(s, max) { s = s || ''; return s.length > max ? s.slice(0, max - 1) + '…' : s; }
+
+// ===== nnn-illustration generation (via dev server) =====
+async function generateNnnIllustration(result, area) {
+  const loader = document.getElementById('nnn-loader');
+  try {
+    const { scores, total, grade, gradeLabel, gradeBlurb, problems, scan } = result;
+    const response = await fetch('/api/generate-illustration', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        skillName: scan.skillName,
+        grade, gradeLabel, total, scores,
+        problems: problems.slice(0, 5).map(p => ({
+          title: p.title, severity: p.severity, dim: p.dim,
+        })),
+        gradeBlurb,
+      }),
+    });
+
+    if (!response.ok) throw new Error('Illustration API returned ' + response.status);
+    const data = await response.json();
+    if (!data.success) throw new Error(data.error || 'Unknown error');
+
+    // build illustration display
+    const illoDiv = document.createElement('div');
+    illoDiv.className = 'nnn-illustration-wrap';
+
+    const img = document.createElement('img');
+    img.className = 'nnn-illustration';
+    img.src = data.url;
+    img.title = '报告一览图 — 点击下载';
+    img.addEventListener('click', () => {
+      const a = document.createElement('a');
+      a.href = data.url;
+      a.download = 'skill-health-illustration-' + grade + '.jpg';
+      a.click();
+    });
+
+    const caption = document.createElement('div');
+    caption.className = 'nnn-caption';
+    caption.textContent = '报告一览图 · ' + gradeLabel + '（' + grade + '）· ' + (gradeBlurb || '');
+
+    illoDiv.appendChild(img);
+    illoDiv.appendChild(caption);
+
+    // replace loader with the illustration (insert before the canvas report)
+    if (loader) {
+      area.replaceChild(illoDiv, loader);
+    } else {
+      area.insertBefore(illoDiv, area.firstChild);
+    }
+
+    // show the nnn badge
+    const badge = document.getElementById('nnn-badge');
+    if (badge) badge.classList.remove('hidden');
+  } catch (e) {
+    console.warn('nnn illustration generation failed:', e);
+    // fallback to canvas report image
+    area.innerHTML = '<div class="report-loading">正在生成报告图…</div>';
+    generateReportImage(result).then(url => {
+      area.innerHTML = '';
+      const img = document.createElement('img');
+      img.src = url; img.title = '点击下载报告图';
+      img.addEventListener('click', () => downloadDataUrl(url, 'skill-report.png'));
+      area.appendChild(img);
+    });
+  }
+}
 
 // ===== Decorative images (graceful fallback if missing) =====
 (function loadArt() {
